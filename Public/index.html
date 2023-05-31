@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f2f2f2;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    #chat {
+      width: 700px;
+      height: 600px;
+      background-color: #f8f8f8;
+      border-radius: 5px;
+      box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden; /* Hide overflow content */
+      border: 1px solid #c4c4c4; /* Improved visibility of outer lines */
+    }
+
+    #messages {
+      list-style-type: none;
+      padding: 0;
+      margin: 0;
+      overflow-y: scroll;
+      max-height: 600px;
+    }
+
+    #messages li {
+      padding: 8px 16px;
+      border-bottom: none
+    }
+
+    #form {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px;
+      border-top: 1px solid #c4c4c4;
+      background-color: white;
+      margin-top: auto;
+      margin-bottom: 0; /* Remove the bottom margin */
+    }
+
+    #message {
+      border: none;
+      padding: 8px;
+      border-radius: 5px;
+      border: 1px solid #c4c4c4; /* Improved visibility of message box */
+      width: 100%;
+    }
+
+    #form button {
+      background-color: #3f51b5;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-left: 8px; /* Add space between Send button and Choose File button */
+    }
+
+    #form .message-input {
+      display: flex;
+      align-items: center;
+    }
+
+    #form .file-input {
+      display: flex;
+      align-items: center;
+    }
+
+    #form .file-input input {
+      display: none;
+    }
+
+    #fileName::after {
+      content: attr(data-label);
+    }
+
+    #login {
+      background-color: white;
+      border-radius: 5px;
+      box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+      padding: 32px;
+      width: 400px;
+    }
+
+    #loginForm {
+      display: flex;
+      flex-direction: column;
+    }
+
+    #username {
+      border: 1px solid #3f51b5;
+      border-radius: 5px;
+      padding: 8px;
+      margin-bottom: 16px;
+      position: relative;
+    }
+
+    #loginForm button {
+      background-color: #3f51b5;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    #loginForm button:hover {
+      background-color: #5c6bc0;
+    }
+
+    .file-input {
+      display: flex;
+      align-items: center;
+    }
+
+    .file-input label {
+      margin-left: 8px;
+    }
+
+    .file-input input[type="file"] {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .file-input label {
+      display: inline-block;
+      background-color: #5c6bc0;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .file-input label:hover {
+      background-color: #3f51b5;
+    }
+
+    .image-preview {
+      width: 150px; /* Set the desired width */
+      height: 150px; /* Set the desired height */
+      object-fit: cover;
+    }
+    
+    #notification {
+      display: none;
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      padding: 10px;
+      background-color: #3f51b5;
+      color: white;
+      font-weight: bold;
+      border-radius: 5px;
+      z-index: 9999;
+    }
+
+  </style>
+</head>
+<body>
+  <div id="login">
+    <h1 id="header" style="font-size: 24px; margin: 16px; padding: 0;">Teretulemast Eero Chat Box-i</h1>
+    <form id="loginForm">
+      <input type="text" id="username" placeholder="Enter a username" required />
+      <button type="submit">Join this Chat Box</button>
+    </form>
+  </div>
+  <div id="chat" style="display: none;">
+    <ul id="messages"></ul>
+    <form id="form" action="" class="mb-4">
+      <div class="message-input">
+        <input
+          id="message"
+          autocomplete="off"
+          autofocus
+          class="w-full px-4 py-2 rounded border-gray-300 focus:outline-none focus:border-blue-500"
+          placeholder="Enter your message here"
+        />
+        <button
+          id="sendButton"
+          type="submit"
+          class="bg-blue-500 hover:bg-blue-600 text-white font-semibold px-4 py-2 rounded"
+        >
+          Send
+        </button>
+      </div>
+      <div class="file-input">
+        <input id="fileInput" type="file" accept="image/*" class="hidden" />
+        <label for="fileInput" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold px-4 py-2 rounded cursor-pointer">
+          Choose File
+        </label>
+        <span id="fileName" class="ml-2 text-gray-600">No file chosen</span>
+      </div>      
+    </form>
+  </div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/client.js"></script>
+  <script>
+    const socket = io();
+    const form = document.querySelector('#form');
+    const input = document.querySelector('#message');
+    const fileInput = document.querySelector('#fileInput');
+    const fileName = document.querySelector('#fileName');
+    const messages = document.querySelector('#messages');
+    const loginForm = document.querySelector('#loginForm');
+    const login = document.querySelector('#login');
+    const chat = document.querySelector('#chat');
+    const imageInputContainer = document.querySelector('#imageInputContainer');
+    const notification = document.querySelector('#notification');
+    let username;
+
+    loginForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      // Get the entered username and store it
+      username = document.querySelector('#username').value;
+
+      // Hide the login form and show the chat
+      login.style.display = 'none';
+      chat.style.display = 'flex';
+
+      // Show the image input container
+      imageInputContainer.style.display = 'flex';
+    });
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const file = fileInput.files[0];
+      if (file) {
+        // Read the file as a data URL
+        const reader = new FileReader();
+        reader.onload = function (event) {
+          const imageDataUrl = event.target.result;
+
+          // Send the image data to the server
+          socket.emit('chat message', { username, message: imageDataUrl, isImage: true });
+        };
+        reader.readAsDataURL(file);
+      } else {
+        // Send text message if no file is selected
+        socket.emit('chat message', { username, message: input.value, isImage: false });
+      }
+
+      // Clear input field and file selection
+      input.value = '';
+      fileInput.value = '';
+      fileName.textContent = 'No file chosen'; // Reset file name text
+    });
+
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if (file) {
+        // Display file name
+        fileName.textContent = file.name;
+      } else {
+        // Reset file name text
+        fileName.textContent = 'No file chosen';
+      }
+    });
+
+    // Trigger a change event on file input to ensure "Choose file" button is visible on page load
+    fileInput.dispatchEvent(new Event('change'));
+
+    socket.on('message history', (history) => {
+      for (const { username, message, isImage } of history) {
+        const li = document.createElement('li');
+        if (isImage) {
+          const img = document.createElement('img');
+          img.src = message;
+          img.className = 'w-48 h-auto rounded mb-2';
+          li.appendChild(img);
+        } else {
+          li.textContent = `${username}: ${message}`;
+        }
+        messages.appendChild(li);
+      }
+    });
+    
+    function scrollToBottom() {
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    // Function to show a notification
+    function showNotification(username, message) {
+      // Display the notification
+      notification.textContent = `${username} sent a message: ${message}`;
+      notification.style.display = 'block';
+
+      // Hide the notification after 3 seconds
+      setTimeout(() => {
+        notification.style.display = 'none';
+      }, 3000);
+    }
+
+    socket.on('chat message', ({ username, message, isImage }) => {
+      const li = document.createElement('li');
+      if (isImage) {
+        const img = document.createElement('img');
+        img.src = message;
+        img.classList.add('image-preview');
+        li.appendChild(img);
+      
+        const usernameSpan = document.createElement('span');
+        usernameSpan.textContent = `${username}: `;
+        li.insertBefore(usernameSpan, img);
+      } else {
+        li.textContent = `${username}: ${message}`;
+      }
+      messages.appendChild(li);
+
+      // Scroll the chat box to the bottom
+      scrollToBottom();
+
+      // Show a notification
+      showNotification(username, message);
+    });
+
+    // Scroll the chat box to the bottom when the page loads
+    window.addEventListener('load', () => {
+      scrollToBottom();
+    });
+  </script>
+</body>
+</html>
